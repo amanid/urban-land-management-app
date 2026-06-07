@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}Document{% endblock %}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 9pt; color: #888; } }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica", "Arial", sans-serif; font-size: 11pt; color: #1a2238; line-height: 1.45; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 3px solid #2563eb; margin-bottom: 24px; }
+  .brand h1 { font-size: 20pt; margin: 0; color: #1d4ed8; letter-spacing: 1px; }
+  .brand p { margin: 2px 0; font-size: 9pt; color: #4b5563; }
+  .doc-id { text-align: right; font-size: 10pt; }
+  .doc-id .badge { display: inline-block; padding: 4px 12px; background: linear-gradient(90deg, #1d4ed8, #4f46e5); color: #fff; border-radius: 999px; font-weight: bold; }
+  h2 { font-size: 14pt; color: #1d4ed8; border-left: 4px solid #1d4ed8; padding-left: 8px; margin: 18px 0 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+  th, td { padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #eef2ff; color: #312e81; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.5px; }
+  tbody tr { border-bottom: 1px solid #e5e7eb; }
+  .grid { display: flex; gap: 16px; }
+  .grid > div { flex: 1; }
+  .info-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
+  .info-card h3 { font-size: 10pt; color: #6366f1; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .info-card p { margin: 2px 0; font-size: 10pt; }
+  .amount-box { background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%); color: #fff; padding: 16px 20px; border-radius: 10px; text-align: center; margin: 12px 0; }
+  .amount-box .label { font-size: 9pt; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; }
+  .amount-box .value { font-size: 22pt; font-weight: bold; margin: 4px 0; }
+  .amount-box .words { font-size: 10pt; font-style: italic; opacity: 0.92; }
+  .signatures { display: flex; gap: 24px; margin-top: 40px; }
+  .signatures > div { flex: 1; border-top: 1px solid #1f2937; padding-top: 8px; font-size: 10pt; text-align: center; }
+  .footer { margin-top: 36px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 8pt; color: #6b7280; text-align: center; }
+  .seal { font-size: 8pt; color: #94a3b8; text-align: center; margin-top: 6px; font-family: monospace; }
+  .right { text-align: right; }
+  .strong { font-weight: bold; }
+  .muted { color: #6b7280; }
+  .pill-paid { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 999px; font-size: 9pt; }
+  .pill-pending { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; font-size: 9pt; }
+  .pill-overdue { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 999px; font-size: 9pt; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand">
+    <h1>{{ company.name }}</h1>
+    <p>{{ company.address }}</p>
+    <p>Tél : {{ company.phone }} · {{ company.email }}</p>
+    {% if company.rccm %}<p>RCCM : {{ company.rccm }}{% if company.tax_id %} · N° fiscal : {{ company.tax_id }}{% endif %}</p>{% endif %}
+  </div>
+  <div class="doc-id">
+    <span class="badge">{% block doc_badge %}{% endblock %}</span>
+    <p class="muted">Émis le {% now "d/m/Y H:i" %}</p>
+  </div>
+</div>
+{% block content %}{% endblock %}
+<div class="footer">{{ company.name }} · Document généré automatiquement. Pour toute réclamation, merci de présenter ce document.</div>
+</body>
+</html>

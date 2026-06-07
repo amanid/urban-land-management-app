@@ -1,0 +1,58 @@
+{% extends "reports/_base.html" %}
+{% block title %}Reçu {{ payment.receipt_number }}{% endblock %}
+{% block doc_badge %}REÇU N° {{ payment.receipt_number }}{% endblock %}
+
+{% block content %}
+<h2>Reçu de versement</h2>
+
+<div class="grid">
+  <div class="info-card">
+    <h3>Payeur</h3>
+    <p class="strong">{{ client.display_name }}</p>
+    <p>{{ client.email }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
+    <p class="muted">Réf. client : {{ client.code }}</p>
+  </div>
+  <div class="info-card">
+    <h3>Vente concernée</h3>
+    <p class="strong">{{ sale.reference }}</p>
+    <p>Lot {{ lot.reference }} — {{ lot.title }}</p>
+    <p class="muted">{{ lot.city.name }} · {{ lot.surface_m2 }} m²</p>
+  </div>
+</div>
+
+<div class="amount-box">
+  <div class="label">Montant encaissé</div>
+  <div class="value">{{ payment.amount|floatformat:0 }} {{ payment.currency }}</div>
+  <div class="words">{{ amount_in_words }}</div>
+</div>
+
+<table>
+  <tr><th style="width:30%">Date du versement</th><td>{{ payment.paid_on|date:"d/m/Y" }}</td></tr>
+  <tr><th>Mode de paiement</th><td>{{ payment.get_method_display }}{% if payment.reference %} (réf. {{ payment.reference }}){% endif %}</td></tr>
+  <tr><th>Reçu par</th><td>{{ payment.received_by.get_full_name|default:payment.received_by.email|default:"—" }}</td></tr>
+  <tr><th>Reçu n°</th><td>{{ payment.receipt_number }}</td></tr>
+  {% if payment.notes %}<tr><th>Observations</th><td>{{ payment.notes }}</td></tr>{% endif %}
+</table>
+
+<div class="grid">
+  <div class="info-card">
+    <h3>Montant net de la vente</h3>
+    <p class="strong">{{ sale.net_amount|floatformat:0 }} {{ sale.currency }}</p>
+  </div>
+  <div class="info-card">
+    <h3>Total déjà versé</h3>
+    <p class="strong">{{ sale.total_paid|floatformat:0 }} {{ sale.currency }}</p>
+  </div>
+  <div class="info-card">
+    <h3>Solde restant</h3>
+    <p class="strong">{{ sale.balance_due|floatformat:0 }} {{ sale.currency }}</p>
+  </div>
+</div>
+
+<div class="signatures">
+  <div>Signature du payeur</div>
+  <div>Cachet et signature de la société</div>
+</div>
+
+<div class="seal">Empreinte d'intégrité : {{ payment.integrity_hash|slice:":32" }}…</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "reports/_base.html" %}
+{% block title %}Contrat de vente {{ sale.reference }}{% endblock %}
+{% block doc_badge %}CONTRAT DE VENTE — {{ sale.reference }}{% endblock %}
+
+{% block content %}
+<h2>Contrat de vente de lot</h2>
+
+<p>Entre les soussignés :</p>
+
+<div class="grid">
+  <div class="info-card">
+    <h3>Le vendeur</h3>
+    <p class="strong">{{ company.name }}</p>
+    <p>{{ company.address }}</p>
+    <p>{{ company.phone }} · {{ company.email }}</p>
+    {% if company.rccm %}<p class="muted">RCCM : {{ company.rccm }}</p>{% endif %}
+  </div>
+  <div class="info-card">
+    <h3>L'acquéreur</h3>
+    <p class="strong">{{ client.display_name }}</p>
+    {% if client.id_number %}<p>{{ client.get_id_kind_display }} : {{ client.id_number }}</p>{% endif %}
+    <p>{{ client.address }}{% if client.city %}, {{ client.city }}{% endif %}</p>
+    <p>{{ client.email }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
+    <p class="muted">Réf. client : {{ client.code }}</p>
+  </div>
+</div>
+
+<h2>Objet</h2>
+<p>Le vendeur cède à l'acquéreur, qui accepte, le lot ci-après désigné, dans les conditions exposées ci-dessous.</p>
+
+<table>
+  <tr><th style="width:35%">Référence du lot</th><td class="strong">{{ lot.reference }}</td></tr>
+  <tr><th>Désignation</th><td>{{ lot.title }}</td></tr>
+  <tr><th>Ville / Quartier</th><td>{{ lot.city.name }}{% if lot.neighborhood %} — {{ lot.neighborhood.name }}{% endif %}</td></tr>
+  <tr><th>Référence cadastrale</th><td>{{ lot.cadastral_ref|default:"—" }}</td></tr>
+  <tr><th>Surface</th><td>{{ lot.surface_m2 }} m²</td></tr>
+  <tr><th>Type</th><td>{{ lot.get_lot_type_display }}</td></tr>
+  <tr><th>Viabilisation</th><td>
+    {% if lot.has_water %}Eau · {% endif %}
+    {% if lot.has_electricity %}Électricité · {% endif %}
+    {% if lot.has_road_access %}Voirie · {% endif %}
+    {% if lot.has_sewage %}Assainissement{% endif %}
+  </td></tr>
+  <tr><th>Titre foncier</th><td>{% if lot.has_title_deed %}Oui{% else %}Non{% endif %}</td></tr>
+</table>
+
+<h2>Conditions financières</h2>
+<table>
+  <tr><th style="width:35%">Prix de vente</th><td class="strong">{{ sale.price|floatformat:0 }} {{ sale.currency }}</td></tr>
+  {% if sale.discount %}<tr><th>Remise</th><td>{{ sale.discount|floatformat:0 }} {{ sale.currency }}</td></tr>{% endif %}
+  <tr><th>Montant net à régler</th><td class="strong">{{ sale.net_amount|floatformat:0 }} {{ sale.currency }}</td></tr>
+  <tr><th>Modalité</th><td>{{ sale.get_payment_mode_display }}</td></tr>
+  {% if sale.payment_mode == "installment" %}
+  <tr><th>Apport initial</th><td>{{ sale.down_payment|floatformat:0 }} {{ sale.currency }}</td></tr>
+  <tr><th>Nombre d'échéances</th><td>{{ sale.installment_count }}</td></tr>
+  <tr><th>Fréquence</th><td>tous les {{ sale.installment_frequency_days }} jours</td></tr>
+  {% endif %}
+</table>
+
+{% if installments %}
+<h2>Échéancier</h2>
+<table>
+  <thead><tr><th>#</th><th>Libellé</th><th>Échéance</th><th class="right">Montant</th><th>Statut</th></tr></thead>
+  <tbody>
+  {% for i in installments %}
+    <tr>
+      <td>{{ i.position }}</td>
+      <td>{{ i.label|default:"Échéance" }}</td>
+      <td>{{ i.due_on|date:"d/m/Y" }}</td>
+      <td class="right strong">{{ i.amount_due|floatformat:0 }} {{ sale.currency }}</td>
+      <td>{{ i.get_status_display }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>Clauses</h2>
+<p><strong>Article 1 — Propriété.</strong> La pleine propriété du lot ne sera transférée qu'après règlement intégral du prix. Tout retard de paiement supérieur à 30 jours expose l'acquéreur à des pénalités.</p>
+<p><strong>Article 2 — Charges et taxes.</strong> Les frais de mutation, droits d'enregistrement, taxes, honoraires et frais notariés sont à la charge de l'acquéreur.</p>
+<p><strong>Article 3 — Résolution.</strong> En cas de non-respect des échéances, la présente convention pourra être résolue de plein droit, sans préjudice de tous dommages et intérêts.</p>
+<p><strong>Article 4 — Règlement anticipé.</strong> L'acquéreur peut à tout moment solder par anticipation tout ou partie du solde restant dû, sans pénalité.</p>
+<p><strong>Article 5 — Litiges.</strong> Tout litige relève du tribunal compétent du siège social du vendeur.</p>
+
+<div class="signatures">
+  <div>L'acquéreur<br><span class="muted">{{ client.display_name }}</span></div>
+  <div>Le vendeur<br><span class="muted">{{ company.name }}</span></div>
+</div>
+
+<p class="seal">Document {{ sale.reference }} — Émis le {% now "d/m/Y H:i" %}</p>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "reports/_base.html" %}
+{% block title %}Relevé de vente {{ sale.reference }}{% endblock %}
+{% block doc_badge %}RELEVÉ DE VENTE — {{ sale.reference }}{% endblock %}
+
+{% block content %}
+<h2>Relevé détaillé</h2>
+
+<div class="grid">
+  <div class="info-card">
+    <h3>Client</h3>
+    <p class="strong">{{ client.display_name }}</p>
+    <p class="muted">{{ client.code }}</p>
+  </div>
+  <div class="info-card">
+    <h3>Lot</h3>
+    <p class="strong">{{ lot.reference }}</p>
+    <p>{{ lot.title }} — {{ lot.surface_m2 }} m²</p>
+  </div>
+  <div class="info-card">
+    <h3>Statut</h3>
+    <p class="strong">{{ sale.get_status_display }}</p>
+    <p class="muted">{{ sale.progress_pct|floatformat:1 }}% réglé</p>
+  </div>
+</div>
+
+<div class="amount-box">
+  <div class="label">Solde restant dû</div>
+  <div class="value">{{ sale.balance_due|floatformat:0 }} {{ sale.currency }}</div>
+  <div class="words">Total à régler : {{ sale.net_amount|floatformat:0 }} {{ sale.currency }} · Versé : {{ sale.total_paid|floatformat:0 }} {{ sale.currency }}</div>
+</div>
+
+<h2>Échéancier</h2>
+<table>
+  <thead><tr><th>#</th><th>Libellé</th><th>Échéance</th><th class="right">À régler</th><th class="right">Versé</th><th class="right">Solde</th><th>Statut</th></tr></thead>
+  <tbody>
+  {% for i in installments %}
+    <tr>
+      <td>{{ i.position }}</td>
+      <td>{{ i.label|default:"Échéance" }}</td>
+      <td>{{ i.due_on|date:"d/m/Y" }}</td>
+      <td class="right">{{ i.amount_due|floatformat:0 }}</td>
+      <td class="right">{{ i.amount_paid|floatformat:0 }}</td>
+      <td class="right strong">{{ i.balance|floatformat:0 }}</td>
+      <td>
+        {% if i.status == "paid" %}<span class="pill-paid">Soldée</span>
+        {% elif i.status == "overdue" %}<span class="pill-overdue">Retard</span>
+        {% else %}<span class="pill-pending">{{ i.get_status_display }}</span>{% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="7" class="muted">Aucune échéance.</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+<h2>Versements enregistrés</h2>
+<table>
+  <thead><tr><th>Reçu</th><th>Date</th><th>Mode</th><th>Référence</th><th class="right">Montant</th></tr></thead>
+  <tbody>
+  {% for p in payments %}
+    <tr>
+      <td class="strong">{{ p.receipt_number }}</td>
+      <td>{{ p.paid_on|date:"d/m/Y" }}</td>
+      <td>{{ p.get_method_display }}</td>
+      <td>{{ p.reference|default:"—" }}</td>
+      <td class="right strong">{{ p.amount|floatformat:0 }} {{ p.currency }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="5" class="muted">Aucun versement.</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+<p class="seal">Document généré le {% now "d/m/Y H:i" %}</p>
+{% endblock %}
