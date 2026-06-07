@@ -1,12 +1,21 @@
-"""Top-level URL routing."""
+"""Top-level URL routing.
+
+L'API est servie sous /api/v1/, /api/docs/, /admin/, /media/.
+Toute autre route est captee par le SPA catch-all qui sert le frontend React
+buildé (frontend_dist/index.html) — seulement si SERVE_FRONTEND=1 et que
+le dossier existe (deploiement tout-en-un).
+"""
+import os
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
 )
+
+from apps.common.frontend import SpaCatchAllView, frontend_available
 
 # Rebrand the admin site
 admin.site.site_header = "Urban Land · Console d'administration"
@@ -32,5 +41,16 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Servir les fichiers media (en debug ou si pas de CDN configure)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# -------------------------------------------------------------------
+# SPA catch-all : sert le frontend React pour toute autre route.
+# Active uniquement si :
+#   1. SERVE_FRONTEND=1 (par defaut active dans le Dockerfile)
+#   2. frontend_dist/index.html existe (build present)
+# -------------------------------------------------------------------
+if os.environ.get("SERVE_FRONTEND", "0") == "1" and frontend_available():
+    urlpatterns += [
+        re_path(r"^(?P<path>.*)$", SpaCatchAllView.as_view(), name="spa-catchall"),
+    ]

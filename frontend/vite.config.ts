@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
+  // Base relative pour que les assets fonctionnent que ce soit servi a la
+  // racine du domaine OU depuis un sous-chemin. Critique pour le mode
+  // tout-en-un (frontend servi par Django).
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "src") },

@@ -1,8 +1,14 @@
 import axios from "axios";
 import { useAuthStore } from "@/store/auth";
 
+// URL de base de l'API — agnostique :
+//  - Tout-en-un (frontend servi par Django) : "/api/v1" sur le meme domaine
+//  - Dev avec proxy Vite : "/api/v1" route vers le backend local
+//  - Frontend separe : VITE_API_BASE=https://api.exemple.com
+const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "") + "/api/v1";
+
 export const api = axios.create({
-  baseURL: "/api/v1",
+  baseURL: API_BASE,
   timeout: 30_000,
 });
 
@@ -36,7 +42,7 @@ api.interceptors.response.use(
       }
       isRefreshing = true;
       try {
-        const r = await axios.post("/api/v1/auth/refresh/", { refresh: refreshToken });
+        const r = await axios.post(`${API_BASE}/auth/refresh/`, { refresh: refreshToken });
         setTokens(r.data.access, r.data.refresh || refreshToken);
         pending.forEach((cb) => cb(r.data.access));
         pending = [];

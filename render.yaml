@@ -1,171 +1,86 @@
-# Infrastructure-as-code pour Render (https://render.com)
-# Push vers GitHub puis "New Blueprint" sur Render -> selectionnez ce fichier.
-
-databases:
-  - name: urban-land-db
-    databaseName: urban_land
-    user: urban_land
-    plan: free                 # passer en starter/standard pour la prod
-    region: frankfurt          # ou oregon, singapore...
+# Render Blueprint — DEPLOIEMENT TOUT-EN-UN, 100% AGNOSTIQUE.
+#
+# UN SEUL service Render heberge l'application complete :
+#   - API Django + Gunicorn
+#   - Frontend React build et servi par Django (multi-stage Docker)
+#   - SQLite par defaut (zero config)
+#
+# Services optionnels (decommentez si vous voulez les ajouter) :
+#   - PostgreSQL : decommentez la section "databases" en bas + DATABASE_URL
+#   - Redis      : decommentez le service redis + REDIS_URL
+#
+# Push -> Render rebuild -> service en ligne. Zero action manuelle.
 
 services:
-  # -------------------------------------------------------------------
-  # Redis (cache + broker Celery)
-  # -------------------------------------------------------------------
-  - type: redis
-    name: urban-land-redis
-    plan: free
-    region: frankfurt
-    ipAllowList: []            # interne uniquement
-    maxmemoryPolicy: allkeys-lru
-
-  # -------------------------------------------------------------------
-  # API Django (Gunicorn)
-  # -------------------------------------------------------------------
   - type: web
-    name: urban-land-api
-    runtime: python
-    plan: starter              # free = 512MB RAM, starter = 512MB+
-    region: frankfurt
+    name: urban-land
+    runtime: docker
+    plan: free                     # passer en starter pour la prod ($7/mois)
+    region: frankfurt              # ou oregon, singapore, ohio...
     branch: main
-    rootDir: backend
-    buildCommand: ./build.sh
-    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --threads 2 --timeout 60 --access-logfile -
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /api/v1/dashboard/health/
+    autoDeploy: true
+
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
       - key: SECRET_KEY
-        generateValue: true     # genere automatiquement par Render
+        generateValue: true
       - key: DEBUG
         value: "False"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: urban-land-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: urban-land-redis
-          property: connectionString
       - key: ALLOWED_HOSTS
         value: ".onrender.com"
-      - key: CORS_ALLOWED_ORIGINS
-        sync: false             # a renseigner avec l'URL du frontend une fois deploye
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
       - key: DEFAULT_CURRENCY
         value: XOF
       - key: DEFAULT_LANGUAGE
         value: fr
       - key: TIME_ZONE
         value: Africa/Abidjan
-      - key: COMPANY_NAME
-        sync: false             # personnalisable par client
-      - key: COMPANY_ADDRESS
-        sync: false
-      - key: COMPANY_PHONE
-        sync: false
-      - key: COMPANY_EMAIL
-        sync: false
-      - key: COMPANY_RCCM
-        sync: false
       - key: DEMO_USERS_ENABLED
         value: "True"
       - key: DEMO_USERS_PASSWORD
         generateValue: true
+      - key: SERVE_FRONTEND
+        value: "1"
+      - key: COMPANY_NAME
+        value: "Ma Societe Immobiliere SARL"
+      - key: COMPANY_ADDRESS
+        value: "Abidjan, Cote d'Ivoire"
+      - key: COMPANY_PHONE
+        value: "+225 27 00 00 00 00"
+      - key: COMPANY_EMAIL
+        value: "contact@example.ci"
+      - key: COMPANY_RCCM
+        value: "CI-ABJ-2026-B-00000"
 
-  # -------------------------------------------------------------------
-  # Worker Celery (taches asynchrones)
-  # -------------------------------------------------------------------
-  - type: worker
-    name: urban-land-worker
-    runtime: python
-    plan: starter
-    region: frankfurt
-    branch: main
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A core worker --loglevel=info
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: SECRET_KEY
-        fromService:
-          type: web
-          name: urban-land-api
-          envVarKey: SECRET_KEY
-      - key: DATABASE_URL
-        fromDatabase:
-          name: urban-land-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: urban-land-redis
-          property: connectionString
-      - key: DEBUG
-        value: "False"
-      - key: ALLOWED_HOSTS
-        value: ".onrender.com"
+      # --- DATABASE_URL et REDIS_URL : decommentez les services correspondants
+      # --- en bas pour les activer automatiquement. Sinon SQLite + cache local.
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: urban-land-db
+      #     property: connectionString
+      # - key: REDIS_URL
+      #   fromService:
+      #     type: redis
+      #     name: urban-land-redis
+      #     property: connectionString
 
-  # -------------------------------------------------------------------
-  # Celery Beat (planificateur de rappels d'echeances)
-  # -------------------------------------------------------------------
-  - type: worker
-    name: urban-land-beat
-    runtime: python
-    plan: starter
-    region: frankfurt
-    branch: main
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: SECRET_KEY
-        fromService:
-          type: web
-          name: urban-land-api
-          envVarKey: SECRET_KEY
-      - key: DATABASE_URL
-        fromDatabase:
-          name: urban-land-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: urban-land-redis
-          property: connectionString
-      - key: DEBUG
-        value: "False"
-      - key: ALLOWED_HOSTS
-        value: ".onrender.com"
+# ============================================================================
+# Services optionnels — decommentez pour les activer
+# ============================================================================
 
-  # -------------------------------------------------------------------
-  # Frontend statique (build Vite)
-  # -------------------------------------------------------------------
-  - type: web
-    name: urban-land-web
-    runtime: static
-    branch: main
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    pullRequestPreviewsEnabled: false
-    headers:
-      - path: /assets/*
-        name: Cache-Control
-        value: "public, max-age=31536000, immutable"
-    routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://urban-land-api.onrender.com/api/:splat
-      - type: rewrite
-        source: /media/*
-        destination: https://urban-land-api.onrender.com/media/:splat
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_BASE
-        value: https://urban-land-api.onrender.com
+# databases:
+#   - name: urban-land-db
+#     databaseName: urban_land
+#     user: urban_land
+#     plan: free
+#     region: frankfurt
+
+# Pour ajouter Redis : decommentez ce bloc et collez-le dans `services` ci-dessus
+# - type: redis
+#   name: urban-land-redis
+#   plan: free
+#   region: frankfurt
+#   ipAllowList: []
+#   maxmemoryPolicy: allkeys-lru

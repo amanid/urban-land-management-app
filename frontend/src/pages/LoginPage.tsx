@@ -21,7 +21,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const r = await axios.post("/api/v1/auth/login/", { email, password });
+      const apiBase = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+      const r = await axios.post(`${apiBase}/api/v1/auth/login/`, { email, password });
       setSession(r.data.user, r.data.access, r.data.refresh);
       toast.success(`Bienvenue ${r.data.user.full_name || r.data.user.email}`);
       nav("/");

@@ -229,10 +229,8 @@ EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@example.com")
 
 # ---------------------------------------------------------------------------
-# Celery
+# Celery (broker URL is set below based on REDIS_URL availability)
 # ---------------------------------------------------------------------------
-CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
@@ -259,13 +257,36 @@ TWILIO_FROM_NUMBER = env("TWILIO_FROM_NUMBER", default="")
 # ---------------------------------------------------------------------------
 # Caching (django-redis)
 # ---------------------------------------------------------------------------
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": env("REDIS_URL", default="redis://localhost:6379/1"),
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+# Use Redis if REDIS_URL is configured, else fall back to in-process cache.
+# This keeps the app functional on hosts without Redis (e.g. single-service
+# Render deployment) while still using Redis when available.
+_REDIS_URL = env("REDIS_URL", default="")
+if _REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": _REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True,  # do not crash the request if Redis dies
+            },
+        }
     }
-}
+    CELERY_BROKER_URL = _REDIS_URL
+    CELERY_RESULT_BACKEND = _REDIS_URL
+else:
+    # Local in-memory cache — works on single instance only (no Celery)
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "urban-land-locmem",
+        }
+    }
+    # Celery uses a no-op/eager broker so any .delay() runs synchronously
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 
 # ---------------------------------------------------------------------------
 # Security (production hardening)
@@ -282,15 +303,18 @@ if not DEBUG:
     SECURE_REFERRER_POLICY = "same-origin"
     X_FRAME_OPTIONS = "DENY"
 
-# DRF throttling (anti-abuse)
-REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = (
-    "rest_framework.throttling.AnonRateThrottle",
-    "rest_framework.throttling.UserRateThrottle",
-)
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    "anon": "30/minute",
-    "user": "300/minute",
-}
+# DRF throttling (anti-abuse) — enabled only when Redis is available,
+# otherwise local-memory cache wouldn't share state across gunicorn workers
+# and could give inconsistent counts. Better to disable than risk false positives.
+if _REDIS_URL:
+    REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    )
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+        "anon": "30/minute",
+        "user": "300/minute",
+    }
 
 # ---------------------------------------------------------------------------
 # Logging
